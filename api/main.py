@@ -1,12 +1,10 @@
 import os
-from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import httpx
 from pydantic import BaseModel, Field
-import psycopg
-from psycopg.rows import dict_row
 
 app = FastAPI(title="Lauzhack API")
 
@@ -26,19 +24,26 @@ app.add_middleware(
 )
 
 
-def get_db_connection():
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise RuntimeError("DATABASE_URL is not set")
-    return psycopg.connect(db_url, row_factory=dict_row)
+def get_supabase_headers(prefer: Optional[str] = None) -> Dict[str, str]:
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+    }
+    if prefer:
+        headers["Prefer"] = prefer
+    return headers
 
 
 def ping_db() -> bool:
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1;")
-                return True
+        supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        if not supabase_url:
+            return False
+        url = f"{supabase_url}/rest/v1/items?select=id&limit=1"
+        headers = get_supabase_headers()
+        res = httpx.get(url, headers=headers, timeout=5.0)
+        return res.status_code == 200
     except Exception:
         return False
 
@@ -55,25 +60,14 @@ def health():
 @app.get("/items")
 def get_items():
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT id, name, created_at FROM public.items ORDER BY id ASC;"
-                )
-                rows = cur.fetchall()
-                items = [
-                    {
-                        "id": row["id"],
-                        "name": row["name"],
-                        "created_at": (
-                            row["created_at"].isoformat()
-                            if hasattr(row["created_at"], "isoformat")
-                            else str(row["created_at"])
-                        ),
-                    }
-                    for row in rows
-                ]
-                return {"items": items}
+        supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        if not supabase_url:
+            raise RuntimeError("SUPABASE_URL is not set")
+        url = f"{supabase_url}/rest/v1/items?select=id,name,created_at&order=id"
+        headers = get_supabase_headers()
+        res = httpx.get(url, headers=headers, timeout=10.0)
+        res.raise_for_status()
+        return {"items": res.json()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -81,25 +75,16 @@ def get_items():
 @app.post("/items", status_code=201)
 def create_item(payload: ItemCreate):
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO public.items (name) VALUES (%s) RETURNING id, name, created_at;",
-                    (payload.name,),
-                )
-                row = cur.fetchone()
-                conn.commit()
-                return {
-                    "item": {
-                        "id": row["id"],
-                        "name": row["name"],
-                        "created_at": (
-                            row["created_at"].isoformat()
-                            if hasattr(row["created_at"], "isoformat")
-                            else str(row["created_at"])
-                        ),
-                    }
-                }
+        supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        if not supabase_url:
+            raise RuntimeError("SUPABASE_URL is not set")
+        url = f"{supabase_url}/rest/v1/items?select=id,name,created_at&order=id"
+        headers = get_supabase_headers(prefer="return=representation")
+        res = httpx.post(url, json={"name": payload.name}, headers=headers, timeout=10.0)
+        res.raise_for_status()
+        data = res.json()
+        item = data[0] if isinstance(data, list) else data
+        return {"item": item}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

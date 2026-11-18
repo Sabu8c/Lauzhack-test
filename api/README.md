@@ -1,7 +1,8 @@
 # API Service
 
 ## Environment Variables
-- `DATABASE_URL`: Postgres URI (sslmode=require)
+- `SUPABASE_URL`: Supabase project URL (e.g. `https://xyz.supabase.co`)
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
 - `ALLOWED_ORIGIN`: Allowed CORS origins, comma-separated (default: `*`)
 - `PORT`: Port to listen on (default: 8000)
 
