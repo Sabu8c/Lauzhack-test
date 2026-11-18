@@ -14,3 +14,7 @@ uvicorn main:app --reload
 curl -s http://localhost:8000/health
 curl -s http://localhost:8000/items
 curl -s -X POST http://localhost:8000/items -H "Content-Type: application/json" -d '{"name":"first item"}'
+
+## Deploy
+
+Railway builds this folder (root directory `api`) from `main` on every push; Vercel builds `frontend/`.
