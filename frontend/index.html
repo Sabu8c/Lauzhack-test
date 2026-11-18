@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Items App</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Items</h1>
+    </header>
+
+    <main>
+      <form id="item-form" class="item-form">
+        <input
+          type="text"
+          id="item-input"
+          class="item-input"
+          placeholder="Enter item name..."
+          autocomplete="off"
+          required
+        >
+        <button type="submit" id="submit-btn" class="btn-submit">Add</button>
+      </form>
+
+      <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
+
+      <section class="list-section">
+        <ul id="item-list" class="item-list"></ul>
+      </section>
+    </main>
+
+    <footer>
+      <span>API Base: <code id="footer-api-base"></code></span>
+    </footer>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
